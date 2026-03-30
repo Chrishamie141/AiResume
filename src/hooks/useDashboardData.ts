@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { firestoreService } from '../services/firestoreService';
-import { geminiService } from '../services/geminiService';
+import { openaiService } from '../services/openaiService';
 import { DashboardStats, JobApplication, AIInsight, UserProfile, Resume } from '../types';
 
 export function useDashboardData() {
@@ -51,7 +51,7 @@ export function useDashboardData() {
         // Fetch AI insights if profile exists
         if (userProfile) {
           try {
-            const aiInsights = await geminiService.generateInsights(userProfile, applications, resumes);
+            const aiInsights = await openaiService.generateInsights(userProfile, applications, resumes);
             setInsights(aiInsights);
           } catch (aiErr: any) {
             console.error('Failed to fetch AI insights:', aiErr);

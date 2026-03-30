@@ -1,0 +1,15 @@
+{
+  "info": {
+    "name": "AI Resume API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/api/health" } },
+    { "name": "Job Search", "request": { "method": "GET", "url": "{{baseUrl}}/api/jobs/search?keywords=software%20engineer" } },
+    { "name": "Parse Resume", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"resumeText\": \"Software engineer with 5 years building React and Node apps across startup teams.\"\n}"}, "url": "{{baseUrl}}/api/ai/parse-resume" } },
+    { "name": "Tailor Resume", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"baseContent\": {\"basics\": {\"name\": \"Alex\"}, \"work\": [], \"education\": [], \"skills\": []},\n  \"jobDescription\": \"Need a TypeScript frontend engineer with strong React and API integration experience for a product team.\"\n}"}, "url": "{{baseUrl}}/api/ai/tailor-resume" } }
+  ]
+}

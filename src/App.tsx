@@ -44,7 +44,7 @@ function AppContent() {
         {user && <Navbar user={user} />}
         <div className="flex">
           {user && <Sidebar userData={userData} />}
-          <main className={user ? "flex-1 p-8" : "w-full"}>
+          <main className={user ? "flex-1 p-4 md:p-8 pb-24 md:pb-8" : "w-full"}>
             <Routes>
               <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
               <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
