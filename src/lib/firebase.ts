@@ -27,8 +27,7 @@ const firebaseConfig = hasFullEnvConfig
 
 if (!hasFullEnvConfig) {
   console.warn(
-    '[firebase] Missing VITE_FIREBASE_* variables. Falling back to firebase-applet-config.json. ' +
-      'Create a .env.local with VITE_FIREBASE_* values for your own Firebase project.',
+    '[firebase] Missing VITE_FIREBASE_* variables. Falling back to firebase-applet-config.json. Create a .env.local with VITE_FIREBASE_* values for your own Firebase project.',
   );
 }
 
@@ -37,8 +36,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 void setPersistence(auth, browserLocalPersistence);
 
-// Use default Firestore DB unless explicitly set in env.
-export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || undefined);
+export const db = getFirestore(
+  app,
+  import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || undefined,
+);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
