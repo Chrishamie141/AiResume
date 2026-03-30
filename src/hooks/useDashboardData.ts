@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
-import { firestoreService } from '../services/firestoreService';
+import { authService } from '../services/authService';
+import { databaseService } from '../services/databaseService';
 import { openaiService } from '../services/openaiService';
+import { useAuth } from './useAuth';
 import { DashboardStats, JobApplication, AIInsight, UserProfile, Resume } from '../types';
 
 export function useDashboardData() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentApplications, setRecentApplications] = useState<JobApplication[]>([]);
   const [recentResumes, setRecentResumes] = useState<Resume[]>([]);
@@ -15,20 +17,20 @@ export function useDashboardData() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!auth.currentUser) {
+      if (!user) {
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        const uid = auth.currentUser.uid;
+        const uid = user.id;
 
         // Fetch all necessary data in parallel
         const [userProfile, applications, resumes] = await Promise.all([
-          firestoreService.getProfile(uid),
-          firestoreService.getApplications(uid),
-          firestoreService.getResumes(uid),
+          databaseService.getProfile(uid),
+          databaseService.getApplications(uid),
+          databaseService.getResumes(uid),
         ]);
 
         setProfile(userProfile);
@@ -76,7 +78,7 @@ export function useDashboardData() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   return { stats, recentApplications, recentResumes, insights, profile, loading, error };
 }

@@ -1,19 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
 import { Resume, ResumeContent, JobListing } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, Edit2, Share2, ChevronLeft, FileText, Sparkles, Loader2, Target, MapPin, Mail, Phone, Globe, ExternalLink, Trash2 } from 'lucide-react';
 import { openaiService } from '../services/openaiService';
-import { firestoreService } from '../services/firestoreService';
+import { databaseService } from '../services/databaseService';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 
 export default function ResumePreview() {
-  const { userData } = useAuth();
+  const { userData, user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const resumeRef = useRef<HTMLDivElement>(null);
@@ -34,11 +32,8 @@ export default function ResumePreview() {
     const fetchResume = async () => {
       if (!id) return;
       try {
-        const docRef = doc(db, 'resumes', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setResume({ id: docSnap.id, ...docSnap.data() } as Resume);
-        }
+        const data = await databaseService.getResumeById(id);
+        setResume(data);
       } catch (error) {
         console.error('Error fetching resume:', error);
       } finally {
@@ -50,7 +45,7 @@ export default function ResumePreview() {
   }, [id]);
 
   const handleTailor = async () => {
-    if (!resume || !tailorJobUrl || !auth.currentUser) return;
+    if (!resume || !tailorJobUrl || !user) return;
     
     if (userData?.plan === 'free') {
       toast.error('AI Tailoring is a Pro feature. Please upgrade to use this tool.');
@@ -64,8 +59,8 @@ export default function ResumePreview() {
       // For now, we'll pass the URL to our backend which can handle it
       const { content: tailoredContent, notes } = await openaiService.tailorResume(resume.content, tailorJobUrl);
       
-      const newResumeId = await firestoreService.saveResume({
-        uid: auth.currentUser.uid,
+      const newResumeId = await databaseService.saveResume({
+        uid: user.id,
         title: `${resume.title} (Tailored)`,
         content: tailoredContent,
         templateId: resume.templateId,
@@ -95,7 +90,7 @@ export default function ResumePreview() {
   };
 
   const handleGenerateCL = async () => {
-    if (!resume || !auth.currentUser) return;
+    if (!resume || !user) return;
     
     if (userData?.plan === 'free') {
       toast.error('Cover Letter Generation is a Pro feature. Please upgrade to use this tool.');
@@ -118,8 +113,8 @@ export default function ResumePreview() {
       setShowCLModal(true);
       
       // Optionally save to Firestore
-      await firestoreService.saveCoverLetter({
-        uid: auth.currentUser.uid,
+      await databaseService.saveCoverLetter({
+        uid: user.id,
         resumeId: resume.id,
         title: `Cover Letter for ${resume.title}`,
         content: clText,
@@ -224,11 +219,11 @@ export default function ResumePreview() {
   };
 
   const handleDelete = async () => {
-    if (!resume || !auth.currentUser) return;
+    if (!resume || !user) return;
     
     setIsDeleting(true);
     try {
-      await firestoreService.deleteResume(resume.id!);
+      await databaseService.deleteResume(resume.id!);
       toast.success('Resume deleted');
       navigate('/dashboard');
     } catch (error) {

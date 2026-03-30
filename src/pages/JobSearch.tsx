@@ -2,14 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Loader2, MapPin, Search, Briefcase, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { auth } from "../lib/firebase";
-import { firestoreService } from "../services/firestoreService";
+import { databaseService } from "../services/databaseService";
 import { openaiService } from "../services/openaiService";
 import { JobListing } from "../types";
 import { jobProvider } from "../services/jobProviderService";
+import { useAuth } from '../hooks/useAuth';
 
 export default function JobSearch() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [keywords, setKeywords] = useState("Software Engineer");
   const [location, setLocation] = useState("Remote");
   const [fullTimeOnly, setFullTimeOnly] = useState(false);
@@ -61,9 +62,9 @@ export default function JobSearch() {
   };
 
   const handleSaveJob = async () => {
-    if (!auth.currentUser || !selectedJob) return;
-    await firestoreService.saveApplication({
-      uid: auth.currentUser.uid,
+    if (!user || !selectedJob) return;
+    await databaseService.saveApplication({
+      uid: user.id,
       jobId: selectedJob.id,
       status: "saved",
       jobSnapshot: selectedJob,
@@ -72,17 +73,17 @@ export default function JobSearch() {
   };
 
   const handleTailorResume = async () => {
-    if (!auth.currentUser || !selectedJob) return;
+    if (!user || !selectedJob) return;
     setTailoring(true);
     try {
-      const profile = await firestoreService.getProfile(auth.currentUser.uid);
+      const profile = await databaseService.getProfile(user.id);
       if (!profile) {
         toast.error("Please complete your profile first.");
         navigate("/resume-builder");
         return;
       }
 
-      const resumes = await firestoreService.getResumes(auth.currentUser.uid);
+      const resumes = await databaseService.getResumes(user.id);
       const baseResumeContent = resumes.length
         ? resumes[0].content
         : await openaiService.generateBaseResume(profile);
@@ -92,8 +93,8 @@ export default function JobSearch() {
         selectedJob.description,
       );
 
-      const resumeId = await firestoreService.saveResume({
-        uid: auth.currentUser.uid,
+      const resumeId = await databaseService.saveResume({
+        uid: user.id,
         title: `Tailored: ${selectedJob.title} at ${selectedJob.company}`,
         content: tailored.content,
         targetJob: selectedJob.title,
@@ -102,8 +103,8 @@ export default function JobSearch() {
         tailoringNotes: tailored.notes,
       });
 
-      await firestoreService.saveApplication({
-        uid: auth.currentUser.uid,
+      await databaseService.saveApplication({
+        uid: user.id,
         jobId: selectedJob.id,
         status: "ready",
         resumeId,

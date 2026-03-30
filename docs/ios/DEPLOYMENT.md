@@ -22,4 +22,4 @@ This project is currently a Vite + React web app with an Express backend. The mo
 - Replace localhost API with production API URL (`VITE_API_BASE_URL`).
 - Verify all endpoint tests pass (`npm run verify:release`).
 - Ensure no debug/dev banners or devtools are exposed in production builds.
-- Complete App Store privacy questionnaire based on Firebase + API usage.
+- Complete App Store privacy questionnaire based on Supabase + API usage.

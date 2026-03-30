@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { User, Mail, Phone, MapPin, Link as LinkIcon, Edit2, Shield, CreditCard, Bell, Loader2 } from 'lucide-react';
-import { auth } from '../lib/firebase';
-import { firestoreService } from '../services/firestoreService';
+import { databaseService } from '../services/databaseService';
 import { UserProfile } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Profile() {
-  const { userData } = useAuth();
+  const { userData, user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const user = auth.currentUser;
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       try {
-        const data = await firestoreService.getProfile(user.uid);
+        const data = await databaseService.getProfile(user.id);
         setProfile(data);
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -51,17 +49,13 @@ export default function Profile() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-24 h-24 bg-stone-100 rounded-[32px] overflow-hidden border-4 border-white shadow-lg">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-stone-300">
-                <User size={48} />
-              </div>
-            )}
+            <div className="w-full h-full flex items-center justify-center text-stone-300">
+              <User size={48} />
+            </div>
           </div>
           <div>
             <h1 className="text-4xl font-serif font-light text-stone-900 mb-1">
-              {profile ? `${profile.firstName} ${profile.lastName}` : user?.displayName || 'User'}
+              {profile ? `${profile.firstName} ${profile.lastName}` : ((user?.user_metadata?.full_name as string | undefined) || 'User')}
             </h1>
             <p className="text-stone-500">{user?.email}</p>
           </div>

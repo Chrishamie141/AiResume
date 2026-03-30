@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Plus, Search, MoreVertical, Trash2, Edit2, ExternalLink, Clock, Sparkles, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { auth } from '../lib/firebase';
-import { firestoreService } from '../services/firestoreService';
+import { databaseService } from '../services/databaseService';
 import { Resume } from '../types';
 import { cn } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
 
 export default function ResumeLibrary() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,9 +20,9 @@ export default function ResumeLibrary() {
   const [resumeToSetBase, setResumeToSetBase] = useState<string | null>(null);
 
   const fetchResumes = async () => {
-    if (!auth.currentUser) return;
+    if (!user) { setLoading(false); return; }
     try {
-      const data = await firestoreService.getResumes(auth.currentUser.uid);
+      const data = await databaseService.getResumes(user.id);
       setResumes(data);
     } catch (error) {
       console.error('Error fetching resumes:', error);
@@ -32,12 +33,12 @@ export default function ResumeLibrary() {
 
   useEffect(() => {
     fetchResumes();
-  }, []);
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     try {
       setDeletingId(id);
-      await firestoreService.deleteResume(id);
+      await databaseService.deleteResume(id);
       setResumes(prev => prev.filter(r => r.id !== id));
       setConfirmDeleteId(null);
       toast.success('Resume deleted successfully');
@@ -54,7 +55,7 @@ export default function ResumeLibrary() {
     
     try {
       setUpdatingId(resumeToSetBase);
-      await firestoreService.updateResume(resumeToSetBase, { isBase: true });
+      await databaseService.updateResume(resumeToSetBase, { isBase: true });
       await fetchResumes(); // Refresh to see changes
       setResumeToSetBase(null);
       toast.success('Base resume updated');

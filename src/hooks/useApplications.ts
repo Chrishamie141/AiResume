@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
-import { firestoreService } from '../services/firestoreService';
+import { authService } from '../services/authService';
+import { databaseService } from '../services/databaseService';
+import { useAuth } from './useAuth';
 import { JobApplication, ApplicationStatusType } from '../types';
 
 export function useApplications() {
+  const { user } = useAuth();
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchApplications = async () => {
-    if (!auth.currentUser) {
+    if (!user) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const apps = await firestoreService.getApplications(auth.currentUser.uid);
+      const apps = await databaseService.getApplications(user.id);
       setApplications(apps);
     } catch (err) {
       console.error('Error fetching applications:', err);
@@ -28,11 +30,11 @@ export function useApplications() {
 
   useEffect(() => {
     fetchApplications();
-  }, []);
+  }, [user]);
 
   const updateStatus = async (id: string, status: ApplicationStatusType) => {
     try {
-      await firestoreService.updateApplicationStatus(id, status);
+      await databaseService.updateApplicationStatus(id, status);
       setApplications(prev => prev.map(app => 
         app.id === id ? { ...app, status, updatedAt: new Date().toISOString() } : app
       ));
