@@ -1,6 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { browserLocalPersistence, getAuth, GoogleAuthProvider, setPersistence } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+
+// Optional fallback config (only used if env vars are missing)
 import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 const envConfig = {
@@ -27,7 +34,7 @@ const firebaseConfig = hasFullEnvConfig
 
 if (!hasFullEnvConfig) {
   console.warn(
-    '[firebase] Missing VITE_FIREBASE_* variables. Falling back to firebase-applet-config.json. Create a .env.local with VITE_FIREBASE_* values for your own Firebase project.',
+    '[firebase] Missing VITE_FIREBASE_* variables. Falling back to firebase-applet-config.json.',
   );
 }
 
