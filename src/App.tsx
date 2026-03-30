@@ -1,7 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
-
-// Pages
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -13,14 +11,12 @@ import ApplicationTracker from './pages/ApplicationTracker';
 import ResumeLibrary from './pages/ResumeLibrary';
 import Pricing from './pages/Pricing';
 import Profile from './pages/Profile';
-
-// Components
 import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
-
 import { Toaster } from 'sonner';
-
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function AppContent() {
   const { user, userData, loading } = useAuth();
@@ -46,15 +42,14 @@ function AppContent() {
               <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
               <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
 
-              {/* Protected Routes */}
-              <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
-              <Route path="/resume-builder" element={user ? <ResumeBuilder /> : <Navigate to="/login" />} />
-              <Route path="/resume/:id" element={user ? <ResumePreview /> : <Navigate to="/login" />} />
-              <Route path="/resumes" element={user ? <ResumeLibrary /> : <Navigate to="/login" />} />
-              <Route path="/jobs" element={user ? <JobSearch /> : <Navigate to="/login" />} />
-              <Route path="/tracker" element={user ? <ApplicationTracker /> : <Navigate to="/login" />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/resume-builder" element={<ProtectedRoute><ResumeBuilder /></ProtectedRoute>} />
+              <Route path="/resume/:id" element={<ProtectedRoute><ResumePreview /></ProtectedRoute>} />
+              <Route path="/resumes" element={<ProtectedRoute><ResumeLibrary /></ProtectedRoute>} />
+              <Route path="/jobs" element={<ProtectedRoute><JobSearch /></ProtectedRoute>} />
+              <Route path="/tracker" element={<ProtectedRoute><ApplicationTracker /></ProtectedRoute>} />
               <Route path="/pricing" element={<Pricing />} />
-              <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             </Routes>
           </main>
         </div>

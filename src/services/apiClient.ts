@@ -1,10 +1,10 @@
-import { auth } from '../lib/firebase';
+import { authService } from './authService';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 async function buildAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
-  const token = await auth.currentUser?.getIdToken();
+  const token = await authService.getAccessToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }

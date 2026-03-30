@@ -2,19 +2,18 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Check, ChevronRight, Sparkles, Zap, ShieldCheck, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { auth } from '../lib/firebase';
-import { firestoreService } from '../services/firestoreService';
+import { databaseService } from '../services/databaseService';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 export default function Pricing() {
-  const { userData, refreshUserData } = useAuth();
+  const { userData, refreshUserData, user } = useAuth();
   const [loading, setLoading] = React.useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleUpgrade = async (planName: string) => {
-    if (!auth.currentUser) {
+    if (!user) {
       toast.error('Please log in to upgrade');
       navigate('/login');
       return;
@@ -25,7 +24,7 @@ export default function Pricing() {
     setLoading(planName);
     try {
       if (userData) {
-        await firestoreService.saveUser({ 
+        await databaseService.saveUser({ 
           ...userData,
           plan 
         });

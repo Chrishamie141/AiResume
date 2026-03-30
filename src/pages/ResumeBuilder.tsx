@@ -7,12 +7,10 @@ import { ChevronRight, ChevronLeft, Plus, Trash2, Save, FileText, Sparkles, Aler
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
-import { firestoreService } from '../services/firestoreService';
+import { databaseService } from '../services/databaseService';
 import { openaiService } from '../services/openaiService';
-import { auth } from '../lib/firebase';
 import { UserProfile } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '../hooks/useAuth';
 
 const profileSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
@@ -73,7 +71,7 @@ const steps = [
 ];
 
 export default function ResumeBuilder() {
-  const { userData } = useAuth();
+  const { userData, user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -94,42 +92,42 @@ export default function ResumeBuilder() {
 
   useEffect(() => {
     const checkBaseResume = async () => {
-      if (auth.currentUser) {
-        const resumes = await firestoreService.getResumes(auth.currentUser.uid);
-        setHasBaseResume(resumes.some(r => r.isBase));
-      }
+      if (!user) return;
+      const resumes = await databaseService.getResumes(user.id);
+      setHasBaseResume(resumes.some(r => r.isBase));
     };
     checkBaseResume();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const profile = await firestoreService.getProfile(user.uid);
-          if (profile) {
-            reset({
-              firstName: profile.firstName,
-              lastName: profile.lastName,
-              email: profile.email,
-              phone: profile.phone,
-              location: profile.location,
-              links: profile.links,
-              summary: profile.summary,
-              education: profile.education,
-              experience: profile.experience,
-              projects: profile.projects || [],
-              coursework: profile.coursework || [],
-              skills: profile.skills,
-            });
-          }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const profile = await databaseService.getProfile(user.id);
+        if (profile) {
+          reset({
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            email: profile.email,
+            phone: profile.phone,
+            location: profile.location,
+            links: profile.links,
+            summary: profile.summary,
+            education: profile.education,
+            experience: profile.experience,
+            projects: profile.projects || [],
+            coursework: profile.coursework || [],
+            skills: profile.skills,
+          });
         }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
       }
-    });
-    return unsubscribe;
-  }, [reset]);
+    };
+
+    void loadProfile();
+  }, [reset, user]);
 
   const { fields: expFields, append: appendExp, remove: removeExp } = useFieldArray({ control, name: 'experience' });
   const { fields: eduFields, append: appendEdu, remove: removeEdu } = useFieldArray({ control, name: 'education' });
@@ -137,12 +135,12 @@ export default function ResumeBuilder() {
   const { fields: courseworkFields, append: appendCoursework, remove: removeCoursework } = useFieldArray({ control, name: 'coursework' });
 
   const saveProgress = async () => {
-    if (!auth.currentUser) return;
+    if (!user) return;
     setIsSaving(true);
     const data = watch();
     try {
       const profile: UserProfile = {
-        uid: auth.currentUser.uid,
+        uid: user.id,
         ...data,
         certifications: [],
         preferences: {
@@ -155,7 +153,7 @@ export default function ResumeBuilder() {
           yearsOfExperience: 0
         }
       };
-      await firestoreService.saveProfile(profile);
+      await databaseService.saveProfile(profile);
     } catch (error) {
       console.error('Error saving progress:', error);
     } finally {
@@ -164,13 +162,13 @@ export default function ResumeBuilder() {
   };
 
   const onSubmit = async (data: ProfileFormValues) => {
-    if (!auth.currentUser) return;
+    if (!user) return;
     
     setIsGenerating(true);
     setShowErrors(false);
     try {
       const profile: UserProfile = {
-        uid: auth.currentUser.uid,
+        uid: user.id,
         ...data,
         certifications: [],
         preferences: {
@@ -185,14 +183,14 @@ export default function ResumeBuilder() {
       };
 
       // 1. Save Profile
-      await firestoreService.saveProfile(profile);
+      await databaseService.saveProfile(profile);
 
       // 2. Generate Resume
       const resumeContent = await openaiService.generateBaseResume(profile);
 
       // 3. Save Resume (will overwrite existing base resume)
-      const resumeId = await firestoreService.saveResume({
-        uid: auth.currentUser.uid,
+      const resumeId = await databaseService.saveResume({
+        uid: user.id,
         title: 'Base Resume',
         content: resumeContent,
         templateId: 'default',

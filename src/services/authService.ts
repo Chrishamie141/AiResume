@@ -1,19 +1,15 @@
-import {
-  ConfirmationResult,
-  OAuthProvider,
-  RecaptchaVerifier,
-  User,
-  UserCredential,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signInWithPhoneNumber,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+export type SessionUser = {
+  id: string;
+  email: string | null;
+  user_metadata?: Record<string, unknown>;
+};
+
+export type AuthSession = {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  user: SessionUser;
+};
 
 export type AuthUser = {
   uid: string;
@@ -21,164 +17,124 @@ export type AuthUser = {
   name: string | null;
 };
 
-const appleProvider = new OAuthProvider('apple.com');
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SESSION_KEY = 'supabase_auth_session';
 
-export function toAuthUser(user: User | null): AuthUser | null {
+type AuthChangeCallback = (user: SessionUser | null) => void;
+
+const listeners = new Set<AuthChangeCallback>();
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing Supabase frontend env vars: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+}
+
+function getStoredSession(): AuthSession | null {
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthSession;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredSession(session: AuthSession | null) {
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+  } else {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+  const user = session?.user ?? null;
+  listeners.forEach((callback) => callback(user));
+}
+
+async function authRequest<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.msg || payload?.error_description || payload?.error || 'Auth request failed');
+  }
+
+  return payload as T;
+}
+
+export function toAuthUser(user: SessionUser | null): AuthUser | null {
   if (!user) return null;
 
   return {
-    uid: user.uid,
+    uid: user.id,
     email: user.email,
-    name: user.displayName,
+    name: (user.user_metadata?.full_name as string | undefined) ?? null,
   };
 }
 
-function getFriendlyErrorMessage(error: unknown): string {
-  const code =
-    typeof error === 'object' && error && 'code' in error
-      ? String((error as { code?: string }).code)
-      : '';
-
-  switch (code) {
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':
-      return 'Invalid email or password. Please try again.';
-
-    case 'auth/email-already-in-use':
-      return 'An account already exists with this email. Try logging in instead.';
-
-    case 'auth/weak-password':
-      return 'Password is too weak. Use at least 6 characters.';
-
-    case 'auth/network-request-failed':
-      return 'Network error. Check your connection and try again.';
-
-    case 'auth/popup-blocked':
-      return 'Popup was blocked. Please allow popups and try again.';
-
-    case 'auth/popup-closed-by-user':
-      return 'Sign-in popup was closed before completing login.';
-
-    case 'auth/operation-not-allowed':
-      return 'This sign-in method is not enabled in Firebase Authentication yet.';
-
-    case 'auth/unauthorized-domain':
-      return 'This domain is not authorized in Firebase Authentication settings.';
-
-    case 'auth/invalid-phone-number':
-      return 'Please enter a valid phone number with country code.';
-
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Please wait and try again.';
-
-    default:
-      return error instanceof Error
-        ? error.message
-        : 'Authentication failed. Please try again.';
-  }
-}
-
-async function withFriendlyErrors<T>(action: () => Promise<T>): Promise<T> {
-  try {
-    return await action();
-  } catch (error) {
-    throw new Error(getFriendlyErrorMessage(error));
-  }
-}
-
 export const authService = {
-  onAuthStateChange(callback: (user: User | null) => void) {
-    return onAuthStateChanged(auth, callback);
+  async getSession(): Promise<AuthSession | null> {
+    return getStoredSession();
   },
 
-  async signInWithGoogle(): Promise<UserCredential> {
-    return withFriendlyErrors(() => signInWithPopup(auth, googleProvider));
+  async getCurrentUser(): Promise<SessionUser | null> {
+    return getStoredSession()?.user ?? null;
   },
 
-  async signInWithApple(): Promise<UserCredential> {
-    return withFriendlyErrors(() => signInWithPopup(auth, appleProvider));
+  async getAccessToken(): Promise<string | null> {
+    return getStoredSession()?.access_token ?? null;
   },
 
-  async signInWithEmail(email: string, password: string): Promise<UserCredential> {
-    return withFriendlyErrors(() =>
-      signInWithEmailAndPassword(auth, email.trim(), password),
-    );
+  onAuthStateChange(callback: AuthChangeCallback) {
+    listeners.add(callback);
+    return {
+      unsubscribe() {
+        listeners.delete(callback);
+      },
+    };
   },
 
-  async signUpWithEmail(
-    email: string,
-    password: string,
-    displayName?: string,
-  ): Promise<UserCredential> {
-    return withFriendlyErrors(async () => {
-      try {
-        const credential = await createUserWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password,
-        );
-
-        if (displayName?.trim()) {
-          await updateProfile(credential.user, {
-            displayName: displayName.trim(),
-          });
-        }
-
-        return credential;
-      } catch (error) {
-        const code =
-          typeof error === 'object' && error && 'code' in error
-            ? String((error as { code?: string }).code)
-            : '';
-
-        // 🔥 Smart fallback: if account exists → log them in
-        if (code === 'auth/email-already-in-use') {
-          return signInWithEmailAndPassword(auth, email.trim(), password);
-        }
-
-        throw error;
-      }
+  async signInWithEmail(email: string, password: string): Promise<SessionUser> {
+    const data = await authRequest<AuthSession>('token?grant_type=password', {
+      email: email.trim(),
+      password,
     });
+    setStoredSession(data);
+    return data.user;
   },
 
-  async sendResetPassword(email: string): Promise<void> {
-    return withFriendlyErrors(() =>
-      sendPasswordResetEmail(auth, email.trim()),
-    );
-  },
-
-  createPhoneRecaptcha(containerId: string): RecaptchaVerifier {
-    return new RecaptchaVerifier(auth, containerId, {
-      size: 'invisible',
-      callback: () => {},
+  async signUpWithEmail(email: string, password: string, displayName?: string): Promise<SessionUser> {
+    const data = await authRequest<AuthSession>('signup', {
+      email: email.trim(),
+      password,
+      data: {
+        full_name: displayName?.trim() || undefined,
+      },
     });
-  },
-
-  async requestPhoneCode(
-    phoneNumber: string,
-    verifier: RecaptchaVerifier,
-  ): Promise<ConfirmationResult> {
-    return withFriendlyErrors(() =>
-      signInWithPhoneNumber(auth, phoneNumber, verifier),
-    );
-  },
-
-  async verifyPhoneCode(
-    confirmationResult: ConfirmationResult,
-    code: string,
-  ): Promise<UserCredential> {
-    return withFriendlyErrors(() =>
-      confirmationResult.confirm(code),
-    );
+    setStoredSession(data);
+    return data.user;
   },
 
   async logout(): Promise<void> {
-    return withFriendlyErrors(() => signOut(auth));
-  },
+    const token = getStoredSession()?.access_token;
 
-  isAppleSupported(): boolean {
-    const appleEnabled = import.meta.env.VITE_ENABLE_APPLE_AUTH === 'true';
-    return appleEnabled && typeof window !== 'undefined' && window.isSecureContext;
+    if (token) {
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+
+    setStoredSession(null);
   },
 };
