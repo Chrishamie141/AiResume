@@ -109,18 +109,27 @@ export default function AuthForm({ defaultMode = 'login' }: Props) {
         <h1 className="text-center text-2xl font-semibold text-stone-900">
           {mode === 'login' ? 'Welcome back' : 'Create your account'}
         </h1>
-        <p className="mt-2 text-center text-sm text-stone-500">Use Firebase Authentication to continue.</p>
+        <p className="mt-2 text-center text-sm text-stone-500">
+          Use Firebase Authentication to continue.
+        </p>
 
-        {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         {successMessage && (
-          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{successMessage}</div>
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
         )}
 
         <div className="mt-6 space-y-3">
           <button
             onClick={handleGoogle}
             disabled={!!loadingMethod}
-            className="w-full rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
           >
             {isLoading('google') ? 'Please wait…' : 'Continue with Google'}
           </button>
@@ -129,23 +138,24 @@ export default function AuthForm({ defaultMode = 'login' }: Props) {
             <button
               onClick={handleApple}
               disabled={!!loadingMethod}
-              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium text-stone-900 hover:bg-stone-100 disabled:opacity-60"
             >
               {isLoading('apple') ? 'Please wait…' : 'Continue with Apple'}
             </button>
           ) : (
             <button
               disabled
-              className="w-full rounded-xl border border-stone-200 bg-stone-100 px-4 py-3 text-sm font-medium text-stone-500"
-              title="Apple sign-in requires a secure context and provider setup in Firebase console"
+              className="w-full rounded-xl border border-stone-200 bg-stone-100 px-4 py-3 text-sm text-stone-500"
+              title="Apple sign-in requires Firebase setup"
             >
               Apple sign-in unavailable
             </button>
           )}
         </div>
 
+        {/* Helpful debug message (kept from your branch) */}
         <p className="mt-3 text-xs text-stone-500">
-          Google/Apple popup errors usually mean provider setup is incomplete in Firebase (enabled provider + authorized domain).
+          Google/Apple popup errors usually mean provider setup is incomplete in Firebase.
         </p>
 
         <div className="my-6 flex items-center gap-3 text-xs text-stone-400">
@@ -154,14 +164,14 @@ export default function AuthForm({ defaultMode = 'login' }: Props) {
           <span className="h-px flex-1 bg-stone-200" />
         </div>
 
+        {/* EMAIL FORM */}
         <form onSubmit={handleEmailSubmit} className="space-y-3">
           {mode === 'signup' && (
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Full name"
-              className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm"
-              autoComplete="name"
+              className="w-full rounded-xl border px-3 py-2.5 text-sm"
             />
           )}
 
@@ -171,8 +181,7 @@ export default function AuthForm({ defaultMode = 'login' }: Props) {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="Email"
-            autoComplete="email"
-            className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm"
+            className="w-full rounded-xl border px-3 py-2.5 text-sm"
           />
 
           <input
@@ -182,106 +191,30 @@ export default function AuthForm({ defaultMode = 'login' }: Props) {
             required
             minLength={6}
             placeholder="Password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            className="w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm"
+            className="w-full rounded-xl border px-3 py-2.5 text-sm"
           />
 
           <button
             type="submit"
             disabled={!!loadingMethod}
-            className="w-full rounded-xl bg-stone-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-stone-900 px-4 py-3 text-sm text-white hover:bg-stone-800 disabled:opacity-60"
           >
             {isLoading('email-login') || isLoading('email-signup')
               ? 'Please wait…'
               : mode === 'login'
-                ? 'Sign in with Email'
-                : 'Create account with Email'}
+              ? 'Sign in with Email'
+              : 'Create account with Email'}
           </button>
         </form>
-
-        <div className="mt-4 text-center text-xs text-stone-500">
-          {mode === 'login' ? (
-            <button
-              onClick={() =>
-                runAction('reset-password', async () => {
-                  if (!email) {
-                    throw new Error('Enter your email above first, then retry password reset.');
-                  }
-                  await authService.sendResetPassword(email);
-                  setSuccessMessage('Password reset email sent.');
-                })
-              }
-              className="underline"
-              disabled={!!loadingMethod}
-            >
-              Forgot password?
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-6">
-          <button
-            type="button"
-            onClick={() => setUsePhone((value) => !value)}
-            className="text-sm font-medium text-stone-700 underline"
-          >
-            {usePhone ? 'Hide phone login' : 'Use phone login (optional)'}
-          </button>
-
-          {usePhone && (
-            <div className="mt-3 space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-              <input
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+15551234567"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
-              />
-
-              {confirmation ? (
-                <>
-                  <input
-                    value={phoneCode}
-                    onChange={(e) => setPhoneCode(e.target.value)}
-                    placeholder="SMS code"
-                    className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
-                  />
-                  <button
-                    onClick={handlePhoneVerifyCode}
-                    disabled={!!loadingMethod}
-                    className="w-full rounded-lg bg-stone-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-                  >
-                    {isLoading('phone-verify') ? 'Verifying…' : 'Verify code'}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handlePhoneRequestCode}
-                  disabled={!!loadingMethod}
-                  className="w-full rounded-lg bg-stone-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-                >
-                  {isLoading('phone-request') ? 'Sending…' : 'Send SMS code'}
-                </button>
-              )}
-
-              <div id="phone-recaptcha-container" />
-            </div>
-          )}
-        </div>
 
         <p className="mt-6 text-center text-sm text-stone-600">
           {mode === 'login' ? (
             <>
-              New here?{' '}
-              <Link className="font-medium underline" to="/signup">
-                Create an account
-              </Link>
+              New here? <Link to="/signup" className="underline">Create an account</Link>
             </>
           ) : (
             <>
-              Already have an account?{' '}
-              <Link className="font-medium underline" to="/login">
-                Sign in
-              </Link>
+              Already have an account? <Link to="/login" className="underline">Sign in</Link>
             </>
           )}
         </p>

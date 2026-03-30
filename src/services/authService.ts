@@ -44,27 +44,38 @@ function getFriendlyErrorMessage(error: unknown): string {
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'Invalid email or password. Please try again.';
+
     case 'auth/email-already-in-use':
       return 'An account already exists with this email. Try logging in instead.';
+
     case 'auth/weak-password':
       return 'Password is too weak. Use at least 6 characters.';
+
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and try again.';
+
     case 'auth/popup-blocked':
       return 'Popup was blocked. Please allow popups and try again.';
+
     case 'auth/popup-closed-by-user':
       return 'Sign-in popup was closed before completing login.';
 
     case 'auth/operation-not-allowed':
       return 'This sign-in method is not enabled in Firebase Authentication yet.';
+
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized in Firebase Authentication settings.';
+
     case 'auth/invalid-phone-number':
       return 'Please enter a valid phone number with country code.';
+
     case 'auth/too-many-requests':
       return 'Too many attempts. Please wait and try again.';
+
     default:
-      return error instanceof Error ? error.message : 'Authentication failed. Please try again.';
+      return error instanceof Error
+        ? error.message
+        : 'Authentication failed. Please try again.';
   }
 }
 
@@ -90,16 +101,30 @@ export const authService = {
   },
 
   async signInWithEmail(email: string, password: string): Promise<UserCredential> {
-    return withFriendlyErrors(() => signInWithEmailAndPassword(auth, email.trim(), password));
+    return withFriendlyErrors(() =>
+      signInWithEmailAndPassword(auth, email.trim(), password),
+    );
   },
 
-  async signUpWithEmail(email: string, password: string, displayName?: string): Promise<UserCredential> {
+  async signUpWithEmail(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<UserCredential> {
     return withFriendlyErrors(async () => {
       try {
-        const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password,
+        );
+
         if (displayName?.trim()) {
-          await updateProfile(credential.user, { displayName: displayName.trim() });
+          await updateProfile(credential.user, {
+            displayName: displayName.trim(),
+          });
         }
+
         return credential;
       } catch (error) {
         const code =
@@ -107,6 +132,7 @@ export const authService = {
             ? String((error as { code?: string }).code)
             : '';
 
+        // 🔥 Smart fallback: if account exists → log them in
         if (code === 'auth/email-already-in-use') {
           return signInWithEmailAndPassword(auth, email.trim(), password);
         }
@@ -117,24 +143,34 @@ export const authService = {
   },
 
   async sendResetPassword(email: string): Promise<void> {
-    return withFriendlyErrors(() => sendPasswordResetEmail(auth, email.trim()));
+    return withFriendlyErrors(() =>
+      sendPasswordResetEmail(auth, email.trim()),
+    );
   },
 
   createPhoneRecaptcha(containerId: string): RecaptchaVerifier {
     return new RecaptchaVerifier(auth, containerId, {
       size: 'invisible',
-      callback: () => {
-        // handled after verifyPhoneNumber
-      },
+      callback: () => {},
     });
   },
 
-  async requestPhoneCode(phoneNumber: string, verifier: RecaptchaVerifier): Promise<ConfirmationResult> {
-    return withFriendlyErrors(() => signInWithPhoneNumber(auth, phoneNumber, verifier));
+  async requestPhoneCode(
+    phoneNumber: string,
+    verifier: RecaptchaVerifier,
+  ): Promise<ConfirmationResult> {
+    return withFriendlyErrors(() =>
+      signInWithPhoneNumber(auth, phoneNumber, verifier),
+    );
   },
 
-  async verifyPhoneCode(confirmationResult: ConfirmationResult, code: string): Promise<UserCredential> {
-    return withFriendlyErrors(() => confirmationResult.confirm(code));
+  async verifyPhoneCode(
+    confirmationResult: ConfirmationResult,
+    code: string,
+  ): Promise<UserCredential> {
+    return withFriendlyErrors(() =>
+      confirmationResult.confirm(code),
+    );
   },
 
   async logout(): Promise<void> {
