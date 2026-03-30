@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import logger from "./lib/logger.ts";
 import { createJobRoutes } from "./routes/jobRoutes.ts";
 import { createAiRoutes } from "./routes/aiRoutes.ts";
+import { requireFirebaseAuth } from "./lib/requireFirebaseAuth.ts";
 
 type AppOverrides = {
   jobService?: Parameters<typeof createJobRoutes>[0];
@@ -56,8 +57,8 @@ export function createApp(overrides: AppOverrides = {}) {
     res.json({ status: "ok", jobProvider: "Adzuna", aiProvider: "OpenAI" });
   });
 
-  app.use("/api/jobs", createJobRoutes(overrides.jobService));
-  app.use("/api/ai", createAiRoutes(overrides.aiService));
+  app.use("/api/jobs", requireFirebaseAuth, createJobRoutes(overrides.jobService));
+  app.use("/api/ai", requireFirebaseAuth, createAiRoutes(overrides.aiService));
 
   app.use((err: any, _req: any, res: any, _next: any) => {
     logger.error("Unhandled Backend Error", {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as FirebaseUser, signOut } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { User as FirebaseUser } from 'firebase/auth';
+import { authService } from '../../services/authService';
 import { LogOut, User, Bell } from 'lucide-react';
 
 export default function Navbar({ user }: { user: FirebaseUser }) {
@@ -9,7 +9,7 @@ export default function Navbar({ user }: { user: FirebaseUser }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await authService.logout();
     navigate('/');
   };
 
