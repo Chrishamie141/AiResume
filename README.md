@@ -2,19 +2,54 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/99b606cd-41ec-438e-98a6-4c6c238f88be
+# AI Resume App
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js 20+
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Copy env template and fill keys:
+   ```bash
+   cp .env.example .env.local
+   ```
+3. Start app + API server:
+   ```bash
+   npm run dev
+   ```
+
+## API Endpoint Testing
+
+Run full backend endpoint checks:
+```bash
+npm run test:api
+```
+
+Run pre-release verification:
+```bash
+npm run verify:release
+```
+
+## iOS Packaging Path (Capacitor wrapper)
+
+1. Build web assets:
+   ```bash
+   npm run build
+   ```
+2. Add iOS platform once:
+   ```bash
+   npx cap add ios
+   ```
+3. Sync web build into native shell:
+   ```bash
+   npm run ios:sync
+   ```
+4. Open Xcode project:
+   ```bash
+   npm run ios:open
+   ```
+
+See `docs/ios/DEPLOYMENT.md` for App Store readiness details.

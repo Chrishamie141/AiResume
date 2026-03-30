@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { firestoreService } from '../services/firestoreService';
-import { geminiService } from '../services/geminiService';
+import { openaiService } from '../services/openaiService';
 import { auth } from '../lib/firebase';
 import { UserProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -188,7 +188,7 @@ export default function ResumeBuilder() {
       await firestoreService.saveProfile(profile);
 
       // 2. Generate Resume
-      const resumeContent = await geminiService.generateBaseResume(profile);
+      const resumeContent = await openaiService.generateBaseResume(profile);
 
       // 3. Save Resume (will overwrite existing base resume)
       const resumeId = await firestoreService.saveResume({

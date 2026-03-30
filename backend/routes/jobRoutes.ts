@@ -1,41 +1,55 @@
 import { Router } from "express";
-import { jobService } from "../services/jobService.ts";
+import {
+  adzunaJobService,
+  AdzunaConfigError,
+  JobSearchValidationError,
+} from "../services/adzunaJobService.ts";
 
-const router = Router();
+type JobServiceLike = {
+  search: typeof adzunaJobService.search;
+};
 
-/**
- * GET /api/jobs/search
- * Searches for jobs across all adapters and the internal database.
- */
-router.get("/search", async (req, res) => {
-  try {
-    const { query, location, limit, offset } = req.query;
-    const jobs = await jobService.searchJobs({
-      query: query as string,
-      location: location as string,
-      limit: limit ? parseInt(limit as string) : 20,
-      offset: offset ? parseInt(offset as string) : 0,
-    });
-    res.json(jobs);
-  } catch (error) {
-    console.error("Job search failed:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+export function createJobRoutes(jobService: JobServiceLike = adzunaJobService) {
+  const router = Router();
 
-/**
- * GET /api/jobs/:id
- * Gets details for a specific job.
- */
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    // This would fetch from DB by internal ID
-    // Placeholder for now
-    res.status(404).json({ error: "Not implemented" });
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  router.get("/search", async (req, res) => {
+    try {
+      const { keywords, query, location, page, results_per_page, remote, salary_min, full_time } =
+        req.query;
 
-export default router;
+      const results = await jobService.search({
+        keywords: String(keywords || query || ""),
+        location: location ? String(location) : undefined,
+        page: page ? Number(page) : undefined,
+        resultsPerPage: results_per_page ? Number(results_per_page) : undefined,
+        filters: {
+          remote: remote === "true" || remote === "1",
+          salaryMin: salary_min ? Number(salary_min) : undefined,
+          fullTime: full_time === "true" || full_time === "1",
+        },
+      });
+
+      res.json(results);
+    } catch (error) {
+      if (error instanceof JobSearchValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      if (error instanceof AdzunaConfigError) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      const message = error instanceof Error ? error.message : "Unknown search error.";
+
+      if (message.toLowerCase().includes("rate limit")) {
+        return res.status(429).json({ error: message });
+      }
+
+      return res.status(502).json({ error: message });
+    }
+  });
+
+  return router;
+}
+
+export default createJobRoutes();
