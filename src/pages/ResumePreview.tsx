@@ -5,7 +5,7 @@ import { db, auth } from '../lib/firebase';
 import { Resume, ResumeContent, JobListing } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, Edit2, Share2, ChevronLeft, FileText, Sparkles, Loader2, Target, MapPin, Mail, Phone, Globe, ExternalLink, Trash2 } from 'lucide-react';
-import { geminiService } from '../services/geminiService';
+import { openaiService } from '../services/openaiService';
 import { firestoreService } from '../services/firestoreService';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -62,7 +62,7 @@ export default function ResumePreview() {
     try {
       // In a real app, we might fetch the job details from the URL first
       // For now, we'll pass the URL to our backend which can handle it
-      const { content: tailoredContent, notes } = await geminiService.tailorResume(resume.content, tailorJobUrl);
+      const { content: tailoredContent, notes } = await openaiService.tailorResume(resume.content, tailorJobUrl);
       
       const newResumeId = await firestoreService.saveResume({
         uid: auth.currentUser.uid,
@@ -113,7 +113,7 @@ export default function ResumePreview() {
 
     setIsGeneratingCL(true);
     try {
-      const clText = await geminiService.generateCoverLetter(resume.content, jobDesc);
+      const clText = await openaiService.generateCoverLetter(resume.content, jobDesc);
       setCoverLetter(clText);
       setShowCLModal(true);
       

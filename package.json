@@ -9,10 +9,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:api": "node tests/api/run-endpoint-tests.mjs",
+    "smoke:api": "node scripts/smoke-api.mjs",
+    "verify:release": "npm run lint && npm run test:api && npm run build",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node-cron": "^3.0.11",
