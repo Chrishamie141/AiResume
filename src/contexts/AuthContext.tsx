@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { firestoreService } from '../services/firestoreService';
+import { AuthUser, authService, toAuthUser } from '../services/authService';
 import { User } from '../types';
 
 interface AuthContextType {
   user: FirebaseUser | null;
+  authUser: AuthUser | null;
   userData: User | null;
   loading: boolean;
   refreshUserData: () => Promise<void>;
@@ -19,56 +20,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshUserData = async () => {
-    if (user) {
-      try {
-        const data = await firestoreService.getUser(user.uid);
-        setUserData(data);
-      } catch (error) {
-        console.error('Error refreshing user data:', error);
-      }
+    if (!user) {
+      setUserData(null);
+      return;
+    }
+
+    try {
+      const data = await firestoreService.getUser(user.uid);
+      setUserData(data);
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = authService.onAuthStateChange(async (firebaseUser) => {
       setUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          let data = await firestoreService.getUser(firebaseUser.uid);
-          
-          if (!data) {
-            const isSpecialUser = firebaseUser.email === 'chrisnj141@gmail.com';
-            data = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || '',
-              photoURL: firebaseUser.photoURL || '',
-              plan: isSpecialUser ? 'pro' : 'free',
-              createdAt: new Date().toISOString()
-            };
-            await firestoreService.saveUser(data);
-          } else if (firebaseUser.email === 'chrisnj141@gmail.com' && data.plan !== 'pro') {
-            data.plan = 'pro';
-            await firestoreService.saveUser(data);
-          }
-          
-          setUserData(data);
-        } catch (error) {
-          console.error('Error handling user data:', error);
-        }
-      } else {
+
+      if (!firebaseUser) {
         setUserData(null);
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
+
+      try {
+        let data = await firestoreService.getUser(firebaseUser.uid);
+
+        if (!data) {
+          data = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || '',
+            photoURL: firebaseUser.photoURL || '',
+            plan: 'free',
+            createdAt: new Date().toISOString(),
+          };
+          await firestoreService.saveUser(data);
+        }
+
+        setUserData(data);
+      } catch (error) {
+        console.error('Error handling user data:', error);
+      } finally {
+        setLoading(false);
+      }
     });
-    
+
     return unsubscribe;
   }, []);
 
+  const authUser = useMemo(() => toAuthUser(user), [user]);
+
   return (
-    <AuthContext.Provider value={{ user, userData, loading, refreshUserData }}>
+    <AuthContext.Provider value={{ user, authUser, userData, loading, refreshUserData }}>
       {children}
     </AuthContext.Provider>
   );
