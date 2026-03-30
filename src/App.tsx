@@ -1,9 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from './lib/firebase';
-import { firestoreService } from './services/firestoreService';
-import { User } from './types';
+import React from 'react';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 
 // Pages
 import Landing from './pages/Landing';
@@ -44,12 +40,12 @@ function AppContent() {
         {user && <Navbar user={user} />}
         <div className="flex">
           {user && <Sidebar userData={userData} />}
-          <main className={user ? "flex-1 p-4 md:p-8 pb-24 md:pb-8" : "w-full"}>
+          <main className={user ? 'flex-1 p-4 md:p-8 pb-24 md:pb-8' : 'w-full'}>
             <Routes>
               <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Landing />} />
               <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
               <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
-              
+
               {/* Protected Routes */}
               <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
               <Route path="/resume-builder" element={user ? <ResumeBuilder /> : <Navigate to="/login" />} />
