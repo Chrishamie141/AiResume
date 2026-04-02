@@ -1,6 +1,12 @@
-import { JobSearchValidationError } from "../../backend/services/adzunaJobService.ts";
 import assert from 'node:assert/strict';
-import { createApp } from '../../backend/app.ts';
+import jwt from 'jsonwebtoken';
+
+process.env.SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || 'test-supabase-secret';
+
+const [{ JobSearchValidationError }, { createApp }] = await Promise.all([
+  import("../../backend/services/adzunaJobService.ts"),
+  import('../../backend/app.ts'),
+]);
 
 const fakeJobService = {
   async search(params) {
@@ -72,6 +78,11 @@ async function run() {
   const server = app.listen(0);
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
+  const authToken = jwt.sign(
+    { sub: 'test-user-id', email: 'tester@example.com', role: 'authenticated' },
+    process.env.SUPABASE_JWT_SECRET,
+  );
+  const authHeaders = { Authorization: `Bearer ${authToken}` };
 
   let failed = 0;
 
@@ -93,26 +104,31 @@ async function run() {
   });
 
   await test('GET /api/jobs/search success', async () => {
-    const res = await fetch(`${base}/api/jobs/search?keywords=engineer`);
+    const res = await fetch(`${base}/api/jobs/search?keywords=engineer`, { headers: authHeaders });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.jobs.length, 1);
   });
 
   await test('GET /api/jobs/search validation failure', async () => {
-    const res = await fetch(`${base}/api/jobs/search`);
+    const res = await fetch(`${base}/api/jobs/search`, { headers: authHeaders });
     assert.equal(res.status, 400);
   });
 
   await test('GET /api/jobs/search upstream failure', async () => {
-    const res = await fetch(`${base}/api/jobs/search?keywords=upstream-error`);
+    const res = await fetch(`${base}/api/jobs/search?keywords=upstream-error`, { headers: authHeaders });
     assert.equal(res.status, 502);
+  });
+
+  await test('GET /api/jobs/search auth failure', async () => {
+    const res = await fetch(`${base}/api/jobs/search?keywords=engineer`);
+    assert.equal(res.status, 401);
   });
 
   await test('POST /api/ai/parse-resume success', async () => {
     const res = await fetch(`${base}/api/ai/parse-resume`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ resumeText: 'Software engineer with 5 years experience building APIs and React apps for enterprise clients.' }),
     });
     assert.equal(res.status, 200);
@@ -121,7 +137,7 @@ async function run() {
   await test('POST /api/ai/parse-resume validation failure', async () => {
     const res = await fetch(`${base}/api/ai/parse-resume`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ resumeText: 'short' }),
     });
     assert.equal(res.status, 400);
@@ -130,7 +146,7 @@ async function run() {
   await test('POST /api/ai/tailor-resume success', async () => {
     const res = await fetch(`${base}/api/ai/tailor-resume`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         baseContent: { basics: { name: 'A' }, work: [], education: [], skills: [] },
         jobDescription: 'Need full-stack engineer with TypeScript, React, and communication skills for product feature ownership.',
@@ -142,7 +158,7 @@ async function run() {
   await test('POST /api/ai/cover-letter success', async () => {
     const res = await fetch(`${base}/api/ai/cover-letter`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         resume: { basics: { name: 'A' } },
         jobDescription: 'Need strong written communication and API development for a remote team across time zones.',
@@ -156,7 +172,7 @@ async function run() {
   await test('POST /api/ai/match-analysis success', async () => {
     const res = await fetch(`${base}/api/ai/match-analysis`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         resume: { basics: { name: 'A' } },
         jobDescription: 'Need backend engineer with SQL and cloud API deployment and observability experience.',
@@ -168,7 +184,7 @@ async function run() {
   await test('POST /api/ai/insights success', async () => {
     const res = await fetch(`${base}/api/ai/insights`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ profileSummary: 'student dev', applicationCount: 5, resumeCount: 2, statuses: ['saved'] }),
     });
     assert.equal(res.status, 200);
@@ -177,7 +193,7 @@ async function run() {
   await test('POST /api/ai/insights rate-limit-style failure mapping', async () => {
     const res = await fetch(`${base}/api/ai/insights`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ profileSummary: 'trigger-rate-limit', applicationCount: 5, resumeCount: 2, statuses: ['saved'] }),
     });
     assert.equal(res.status, 429);
